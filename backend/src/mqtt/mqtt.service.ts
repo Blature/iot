@@ -68,13 +68,16 @@ export class MqttService implements OnModuleInit {
         return this.client?.connected || false;
     }
 
-    publishMock(deviceId = 'dev123', value = 20 + Math.random() * 10) {
-        console.log(deviceId, value)
+    publishMock(deviceId?: string, value?: number) {
+        const id = deviceId || 'dev123';
+        const val = value ?? 20 + Math.random() * 10;
+
         const payload = JSON.stringify({
-            deviceId,
-            value: parseFloat(value.toFixed(2)),
+            deviceId: id,
+            value: parseFloat(val.toFixed(2)),
             timestamp: new Date().toISOString(),
         });
+
         this.client.publish('sensors/temperature', payload);
     }
 }

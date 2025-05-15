@@ -14,7 +14,6 @@ export class AppController {
 
   @Post('simulate')
   simulate(@Body() body: { deviceId?: string; value?: number }) {
-    console.log(body)
     this.mqttService.publishMock(body.deviceId, body.value);
     return { status: 'ok' };
   }

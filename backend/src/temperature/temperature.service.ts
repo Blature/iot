@@ -11,8 +11,6 @@ export class TemperatureService {
 
   clearReadings() {
     this.readings = {};
-    console.log('Cleared readings');
-    console.log(this.readings);
   }
 
   saveReading(deviceId: string, data: Reading) {

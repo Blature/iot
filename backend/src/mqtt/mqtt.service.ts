@@ -41,24 +41,31 @@ export class MqttService implements OnModuleInit {
         });
 
         this.client.on('message', (topic, payload) => {
-            if (topic === 'sensors/temperature') {
+            if (topic === 'sensors/temperature' || topic === 'iot/webdeveloper2000/temperature') {
                 try {
-                    const message = JSON.parse(payload.toString());
+                    const raw = payload.toString();
+
+                    if (!raw.startsWith('{')) {
+                        this.logger.warn(`⚠️ Skipped non-JSON MQTT message: ${raw}`);
+                        return;
+                    }
+
+                    const message = JSON.parse(raw);
                     const { deviceId, value, timestamp } = message;
 
-
                     if (!deviceId || typeof deviceId !== 'string') {
-                        this.logger.warn('MQTT message ignored: missing or invalid deviceId');
+                        this.logger.warn('Skipped: missing or invalid deviceId');
+                        return;
+                    }
+
+                    if (typeof value !== 'number' || !timestamp) {
+                        this.logger.warn('Skipped: missing value/timestamp');
                         return;
                     }
 
                     this.logger.log(`Received MQTT: ${JSON.stringify(message)}`);
 
-                    this.temperatureService.saveReading(deviceId, {
-                        value,
-                        timestamp,
-                    });
-
+                    this.temperatureService.saveReading(deviceId, { value, timestamp });
                     this.wsGateway.broadcastUpdate({ deviceId, value, timestamp });
                 } catch (err) {
                     this.logger.error('Invalid MQTT message', err);

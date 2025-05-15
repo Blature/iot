@@ -1,0 +1,80 @@
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { connect, MqttClient } from 'mqtt';
+import { TemperatureService } from '../temperature/temperature.service';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
+
+@Injectable()
+export class MqttService implements OnModuleInit {
+    private readonly logger = new Logger(MqttService.name);
+    private client: MqttClient;
+
+    constructor(
+        private readonly temperatureService: TemperatureService,
+        private readonly wsGateway: WebsocketGateway,
+    ) { }
+
+    onModuleInit() {
+        this.logger.log('Initializing MQTT service');
+        this.connectToBroker();
+    }
+
+    connectToBroker() {
+        this.logger.log('Connecting to MQTT broker ...');
+        this.client = connect('mqtt://127.0.0.1:1883', { //mqtt://host.docker.internal:1883 for docker
+            connectTimeout: 4000,
+            reconnectPeriod: 1000,
+            clean: true,
+            clientId: 'nestjs_mqtt_client_' + Math.random().toString(16).substr(2, 8),
+        });
+        
+        this.client.on('connect', () => {
+            this.logger.log('Connected to MQTT broker');
+            this.client.subscribe('sensors/temperature');
+        });
+
+        this.client.on('error', (err) => {
+            this.logger.error('MQTT connection error:', err);
+        })
+
+        this.client.on('close', () => {
+            this.logger.log('Disconnected from MQTT broker');
+        });
+
+        this.client.on('message', (topic, payload) => {
+            if (topic === 'sensors/temperature') {
+                try {
+                    this.logger.log('Received MQTT message:', payload.toString());
+                    const message = JSON.parse(payload.toString());
+                    const { deviceId, value, timestamp } = message;
+
+                    this.temperatureService.saveReading(deviceId, {
+                        value,
+                        timestamp,
+                    });
+
+                    this.wsGateway.broadcastUpdate({ deviceId, value, timestamp });
+                } catch (err) {
+                    this.logger.error('Invalid MQTT message', err);
+                }
+            }
+        });
+
+        this.client.on('error', (err) => {
+            this.logger.error('MQTT error:', err);
+        });
+    }
+
+    isConnected(): boolean {
+        return this.client?.connected || false;
+    }
+
+    publishMock(deviceId = 'dev123', value = 20 + Math.random() * 10) {
+        console.log(deviceId, value)
+        const payload = JSON.stringify({
+            deviceId,
+            value: parseFloat(value.toFixed(2)),
+            timestamp: new Date().toISOString(),
+        });
+        this.client.publish('sensors/temperature', payload);
+    }
+}

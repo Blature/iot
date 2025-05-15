@@ -20,13 +20,13 @@ export class MqttService implements OnModuleInit {
 
     connectToBroker() {
         this.logger.log('Connecting to MQTT broker ...');
-        this.client = connect('mqtt://127.0.0.1:1883', { //mqtt://host.docker.internal:1883 for docker
+        this.client = connect('mqtt://broker.hivemq.com:1883', { //mqtt://127.0.0.1:1883
             connectTimeout: 4000,
             reconnectPeriod: 1000,
             clean: true,
             clientId: 'nestjs_mqtt_client_' + Math.random().toString(16).substr(2, 8),
         });
-        
+
         this.client.on('connect', () => {
             this.logger.log('Connected to MQTT broker');
             this.client.subscribe('sensors/temperature');

@@ -1,0 +1,20 @@
+# Ignore global node_modules
+**/node_modules
+
+# Ignore .env files
+**/.env
+**/.env.local
+**/.env.production
+**/.env.*.local
+
+# Ignore build outputs
+**/.next
+**/dist
+
+# Logs
+**/logs
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db

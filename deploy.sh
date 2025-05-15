@@ -10,6 +10,7 @@ read -p "📧 Enter your email for SSL (e.g. admin@example.com): " EMAIL
 
 API_SUBDOMAIN="api.$DOMAIN"
 
+
 echo "📦 Installing Docker from official source..."
 sudo apt remove docker docker-engine docker.io containerd runc -y || true
 sudo apt update
@@ -20,10 +21,8 @@ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
   sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
 echo \
-  "deb [arch=$(dpkg --print-architecture) \
-  signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 sudo apt update
@@ -37,22 +36,22 @@ echo "🛠️ Setting up Nginx config..."
 sudo tee /etc/nginx/sites-available/iot-app > /dev/null <<EOF
 server {
     listen 80;
-    server_name \$DOMAIN;
+    server_name $DOMAIN;
     return 301 https://\$host\$request_uri;
 }
 
 server {
     listen 80;
-    server_name \$API_SUBDOMAIN;
+    server_name $API_SUBDOMAIN;
     return 301 https://\$host\$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name \$DOMAIN;
+    server_name $DOMAIN;
 
-    ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/\$DOMAIN/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
     location / {
         proxy_pass http://localhost:3001;
@@ -65,10 +64,10 @@ server {
 
 server {
     listen 443 ssl;
-    server_name \$API_SUBDOMAIN;
+    server_name $API_SUBDOMAIN;
 
-    ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/\$DOMAIN/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
     location /socket.io/ {
         proxy_pass http://localhost:3000/socket.io/;
@@ -90,6 +89,7 @@ EOF
 
 sudo ln -sf /etc/nginx/sites-available/iot-app /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl restart nginx
+
 
 echo "🔐 Obtaining SSL certificate..."
 sudo certbot --nginx --non-interactive --agree-tos -m "$EMAIL" -d "$DOMAIN" -d "$API_SUBDOMAIN"

@@ -15,6 +15,7 @@ export class MqttService implements OnModuleInit {
 
     onModuleInit() {
         this.logger.log('Initializing MQTT service');
+        this.temperatureService.clearReadings();
         this.connectToBroker();
     }
 
@@ -41,31 +42,17 @@ export class MqttService implements OnModuleInit {
         });
 
         this.client.on('message', (topic, payload) => {
-            if (topic === 'sensors/temperature' || topic === 'iot/webdeveloper2000/temperature') {
+            if (topic === 'sensors/temperature') {
                 try {
-                    const raw = payload.toString();
-
-                    if (!raw.startsWith('{')) {
-                        this.logger.warn(`⚠️ Skipped non-JSON MQTT message: ${raw}`);
-                        return;
-                    }
-
-                    const message = JSON.parse(raw);
+                    this.logger.log('Received MQTT message:', payload.toString());
+                    const message = JSON.parse(payload.toString());
                     const { deviceId, value, timestamp } = message;
 
-                    if (!deviceId || typeof deviceId !== 'string') {
-                        this.logger.warn('Skipped: missing or invalid deviceId');
-                        return;
-                    }
+                    this.temperatureService.saveReading(deviceId, {
+                        value,
+                        timestamp,
+                    });
 
-                    if (typeof value !== 'number' || !timestamp) {
-                        this.logger.warn('Skipped: missing value/timestamp');
-                        return;
-                    }
-
-                    this.logger.log(`Received MQTT: ${JSON.stringify(message)}`);
-
-                    this.temperatureService.saveReading(deviceId, { value, timestamp });
                     this.wsGateway.broadcastUpdate({ deviceId, value, timestamp });
                 } catch (err) {
                     this.logger.error('Invalid MQTT message', err);

@@ -9,6 +9,10 @@ export interface Reading {
 export class TemperatureService {
   private readings: Record<string, Reading> = {};
 
+  clearReadings(){
+    this.readings = {};
+  }
+
   saveReading(deviceId: string, data: Reading) {
     this.readings[deviceId] = data;
   }

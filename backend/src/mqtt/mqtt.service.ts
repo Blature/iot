@@ -29,8 +29,8 @@ export class MqttService implements OnModuleInit {
 
         this.client.on('connect', () => {
             this.logger.log('Connected to MQTT broker');
-            this.client.subscribe('sensors/temperature');
             this.temperatureService.clearReadings();
+            this.client.subscribe('sensors/temperature');
         });
 
         this.client.on('error', (err) => {

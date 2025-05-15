@@ -43,9 +43,16 @@ export class MqttService implements OnModuleInit {
         this.client.on('message', (topic, payload) => {
             if (topic === 'sensors/temperature') {
                 try {
-                    this.logger.log('Received MQTT message:', payload.toString());
                     const message = JSON.parse(payload.toString());
                     const { deviceId, value, timestamp } = message;
+
+
+                    if (!deviceId || typeof deviceId !== 'string') {
+                        this.logger.warn('MQTT message ignored: missing or invalid deviceId');
+                        return;
+                    }
+
+                    this.logger.log(`Received MQTT: ${JSON.stringify(message)}`);
 
                     this.temperatureService.saveReading(deviceId, {
                         value,

@@ -16,13 +16,9 @@ sudo apt update
 sudo apt install -y ca-certificates curl gnupg lsb-release
 
 sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -30,11 +26,29 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 echo "🌐 Installing Nginx and Certbot..."
 sudo apt install -y nginx certbot python3-certbot-nginx
 
+echo "🛑 Stopping services on port 80..."
 sudo systemctl stop apache2 || true
 sudo systemctl stop nginx || true
 
-echo "🛠️ Setting up Nginx config..."
+echo "⚙️ Creating temporary Nginx config for SSL challenge..."
+sudo tee /etc/nginx/sites-available/iot-app > /dev/null <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN $API_SUBDOMAIN;
 
+    location / {
+        return 200 "Temporary setup for certbot";
+    }
+}
+EOF
+
+sudo ln -sf /etc/nginx/sites-available/iot-app /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl restart nginx
+
+echo "🔐 Obtaining SSL certificates..."
+sudo certbot --nginx --non-interactive --agree-tos -m "$EMAIL" -d "$DOMAIN" -d "$API_SUBDOMAIN"
+
+echo "🔁 Switching to full Nginx config with SSL..."
 sudo tee /etc/nginx/sites-available/iot-app > /dev/null <<EOF
 server {
     listen 80;
@@ -52,8 +66,8 @@ server {
     listen 443 ssl;
     server_name $DOMAIN;
 
-    ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/\$DOMAIN/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
     location / {
         proxy_pass http://localhost:3001;
@@ -68,8 +82,8 @@ server {
     listen 443 ssl;
     server_name $API_SUBDOMAIN;
 
-    ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/\$DOMAIN/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
     location /socket.io/ {
         proxy_pass http://localhost:3000/socket.io/;
@@ -89,10 +103,7 @@ server {
 }
 EOF
 
-sudo ln -sf /etc/nginx/sites-available/iot-app /etc/nginx/sites-enabled/
-sudo systemctl restart nginx
-
-sudo certbot --nginx --non-interactive --agree-tos -m "$EMAIL" -d "$DOMAIN" -d "$API_SUBDOMAIN"
+sudo nginx -t && sudo systemctl restart nginx
 
 echo "🚀 Running docker-compose..."
 docker compose up -d

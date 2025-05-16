@@ -10,6 +10,15 @@ read -p "📧 Enter your email for SSL (e.g. admin@example.com): " EMAIL
 
 API_SUBDOMAIN="api.$DOMAIN"
 
+# ✅ Update frontend env file
+cp frontend/.env.production.example frontend/.env.production
+sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=https://$API_SUBDOMAIN|" frontend/.env.production
+sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=wss://$API_SUBDOMAIN|" frontend/.env.production
+
+if [ ! -f backend/.env.production ]; then
+  echo "MQTT_BROKER_URL=mqtt://broker.hivemq.com:1883" > backend/.env.production
+fi
+
 echo "📦 Installing Docker from official source..."
 sudo apt remove docker docker-engine docker.io containerd runc -y || true
 sudo apt update

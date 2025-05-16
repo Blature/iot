@@ -31,27 +31,30 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 echo "🌐 Installing Nginx and Certbot..."
 sudo apt install -y nginx certbot python3-certbot-nginx
 
+sudo systemctl start nginx
+sudo certbot --nginx --non-interactive --agree-tos -m "$EMAIL" -d "$DOMAIN" -d "$API_SUBDOMAIN"
+
 echo "🛠️ Setting up Nginx config..."
 
 sudo tee /etc/nginx/sites-available/iot-app > /dev/null <<EOF
 server {
     listen 80;
-    server_name $DOMAIN;
+    server_name \$DOMAIN;
     return 301 https://\$host\$request_uri;
 }
 
 server {
     listen 80;
-    server_name $API_SUBDOMAIN;
+    server_name \$API_SUBDOMAIN;
     return 301 https://\$host\$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name $DOMAIN;
+    server_name \$DOMAIN;
 
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/\$DOMAIN/privkey.pem;
 
     location / {
         proxy_pass http://localhost:3001;
@@ -64,10 +67,10 @@ server {
 
 server {
     listen 443 ssl;
-    server_name $API_SUBDOMAIN;
+    server_name \$API_SUBDOMAIN;
 
-    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/\$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/\$DOMAIN/privkey.pem;
 
     location /socket.io/ {
         proxy_pass http://localhost:3000/socket.io/;
@@ -89,10 +92,6 @@ EOF
 
 sudo ln -sf /etc/nginx/sites-available/iot-app /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl restart nginx
-
-
-echo "🔐 Obtaining SSL certificate..."
-sudo certbot --nginx --non-interactive --agree-tos -m "$EMAIL" -d "$DOMAIN" -d "$API_SUBDOMAIN"
 
 echo "🚀 Running docker-compose..."
 docker compose up -d
